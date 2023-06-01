@@ -1,0 +1,228 @@
+#!/usr/bin/env bash
+# vim: et sw=4 ts=4 sts=4
+##############################################################################
+################################## GLOBALS ###################################
+##############################################################################
+
+DEFAULT_DOCKER_IMAGE=salt-docker
+DEFAULT_DOCKER_LOCALE=en_US.UTF-8
+DEFAULT_DOCKER_PYTHON=3.10.11
+
+declare -A BASE_IMAGE
+BASE_IMAGE[archlinux]="archlinux:latest"
+BASE_IMAGE[debian10]="debian:10"
+BASE_IMAGE[debian11]="debian:11"
+BASE_IMAGE[ubuntu20]="ubuntu:focal"
+BASE_IMAGE[ubuntu22]="ubuntu:jammy"
+BASE_IMAGE[centos7]="centos:7"
+BASE_IMAGE[rocky8]="rockylinux:8"
+BASE_IMAGE[rocky9]="rockylinux:9"
+BASE_IMAGE[suseleap154]="opensuse/leap:15.4"
+
+##############################################################################
+################################# FUNCTIONS ##################################
+##############################################################################
+
+##############################################################################
+#
+# FUNCTION:     _print_usage
+#
+# DESCRIPTION:  Prints the script usage message
+#
+# ARGUMENTS:    None
+#
+# OUTPUT:       Usage details
+#
+# RETURNS:      None
+#
+function _print_usage {
+    echo "\
+USAGE: $0 [OPTIONS] [BUILD OPTIONS] platform [ -- ] [ command ]
+
+    platform            The platform to use (see --list-platforms)
+    command             Optional command to run in the container (use \"--\" to
+                        explicitly separate the container command from the
+                        script arguments)
+
+OPTIONS:
+    -h/--help           Show this message
+    --list-platforms    Print the supported platforms to stdout
+    --no-build          Skip docker build
+    --no-run            Skip docker run
+
+BUILD OPTIONS (ignored if --no-build is used):
+    --no-cache          Disgregard cache for docker build (forces full rebuild)
+    --image             Docker image name (default: ${DEFAULT_DOCKER_IMAGE})
+    --locale            Locale to use (default: ${DEFAULT_DOCKER_LOCALE})
+    --python            Python to install into built image (default: ${DEFAULT_DOCKER_PYTHON})
+" 1>&2
+}
+
+##############################################################################
+#
+# FUNCTION:     _abort
+#
+# DESCRIPTION:  Exit the script with a nonzero exit status due to a fatal error
+#
+# ARGUMENTS:    1. Error message
+#
+function _abort {
+    echo "FATAL: $1" 1>&2
+    _print_usage
+    exit 1
+}
+
+##############################################################################
+#
+# FUNCTION:     _build
+#
+# DESCRIPTION:  Build for the specified platform
+#
+function _build {
+    local options=()
+    [[ $DOCKER_BUILD_CACHE == no ]] && options=("${options[@]}" --no-cache)
+    # Work around RPM bug (https://stackoverflow.com/a/74346590)
+    [[ "$PLATFORM" == centos7 ]] && options=("${options[@]}" "--ulimit" "nofile=4096:4096")
+    docker build "${options[@]}" \
+        --target finalize \
+        --tag "${DOCKER_IMAGE}:${PLATFORM}" \
+        --build-context requirements="$PWD/requirements" \
+        --build-arg "platform=$PLATFORM" \
+        --build-arg "base_image=${BASE_IMAGE[$PLATFORM]}" \
+        --build-arg "locale=${DOCKER_LOCALE}" \
+        --build-arg "python_release=${DOCKER_PYTHON}" \
+        "$SCRIPT_DIR"
+}
+
+##############################################################################
+#
+# FUNCTION:     _run
+#
+# DESCRIPTION:  Launch the container
+#
+function _run {
+    local options=()
+    # Work around RPM bug (https://stackoverflow.com/a/74346590)
+    [[ "$PLATFORM" == centos7 ]] && options=("${options[@]}" "--ulimit" "nofile=4096:4096")
+    docker run --rm -it "${options[@]}" \
+        -v "$PWD":/testing \
+        "${DOCKER_IMAGE}:${PLATFORM}" "${DOCKER_RUN_ARGV[@]}"
+}
+##############################################################################
+################################# PRE-FLIGHT #################################
+##############################################################################
+
+SCRIPT_DIR="$(dirname "$0")"
+
+for req in sed git docker; do
+    command -v "$req" >/dev/null || _abort "$req is required"
+done
+
+# Enforce use of buildkit
+export DOCKER_BUILDKIT=1
+
+##############################################################################
+############################## ARGUMENT PARSING ##############################
+##############################################################################
+
+PLATFORM=
+DOCKER_RUN=yes
+DOCKER_BUILD=yes
+DOCKER_BUILD_CACHE=yes
+DOCKER_IMAGE="$DEFAULT_DOCKER_IMAGE"
+DOCKER_LOCALE="$DEFAULT_DOCKER_LOCALE"
+DOCKER_PYTHON="$DEFAULT_DOCKER_PYTHON"
+DOCKER_RUN_ARGV=()
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            _print_usage
+            exit 0
+            ;;
+        --list-platforms)
+            # Get sorted array of supported platforms
+            IFS=$'\n' platforms=($(sort <<<${!BASE_IMAGE[*]}))
+            # Print platforms one per line, then exit
+            for item in "${platforms[@]}"; do
+                echo "$item"
+            done
+            exit 0
+            ;;
+        --no-run)
+            DOCKER_RUN=no
+            shift
+            ;;
+        --no-build)
+            DOCKER_BUILD=no
+            shift
+            ;;
+        --no-cache)
+            DOCKER_BUILD_CACHE=no
+            shift
+            ;;
+        --image=*)
+            DOCKER_IMAGE="$(echo "$1" | cut -f2- -d'=')"
+            shift
+            ;;
+        --image)
+            DOCKER_IMAGE="$2"
+            shift 2
+            ;;
+        --locale=*)
+            DOCKER_LOCALE="$(echo "$1" | cut -f2- -d'=')"
+            shift
+            ;;
+        --locale)
+            DOCKER_LOCALE="$2"
+            shift 2
+            ;;
+        --python=*)
+            DOCKER_PYTHON="$(echo "$1" | cut -f2- -d'=')"
+            shift
+            ;;
+        --python)
+            DOCKER_PYTHON="$2"
+            shift 2
+            ;;
+        "")
+            # No more arguments
+            break
+            ;;
+        --)
+            shift
+            # The remaining arguments all go to the "docker run" command
+            DOCKER_RUN_ARGV=("$@")
+            break
+            ;;
+        *)
+            # First positional argument is the platform, all others go to the
+            # argv for the "docker run" command.
+            if [[ -z "$PLATFORM" ]]; then
+                PLATFORM="$1"
+            else
+                DOCKER_RUN_ARGV=("${DOCKER_RUN_ARGV[@]}" "$1")
+            fi
+            shift
+    esac
+done
+
+##############################################################################
+################################# VALIDATION #################################
+##############################################################################
+
+# Identify the root of the git repo
+GIT_TOPLEVEL="$(git rev-parse --show-toplevel 2>/dev/null)"
+# Change directory to the toplevel dir, or abort if not running from a git repo
+[[ -n "$GIT_TOPLEVEL" ]] && cd "$GIT_TOPLEVEL" || _abort "Must be run from a git repo"
+
+# Require a valid platform
+[[ -z "$PLATFORM" ]] && _abort "platform is required"
+[[ -z "${BASE_IMAGE[$PLATFORM]}" ]] && _abort "unsupported platform (run $0 --list-platforms)"
+
+##############################################################################
+#################################### MAIN ####################################
+##############################################################################
+
+[[ $DOCKER_BUILD == yes ]] && _build
+[[ $DOCKER_RUN == yes ]] && _run
