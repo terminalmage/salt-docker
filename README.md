@@ -10,7 +10,7 @@ are developing on a Fedora machine and need to work on CentOS-related code, or
 your dev box is Arch Linux and you need to work on Ubuntu-specific code?
 
 Salt could use something to reduce development friction and make it easier to
-start hacking.
+start hacking on Salt.
 
 ## Solution
 
@@ -34,6 +34,7 @@ platforms (and should be easily expandable to support others):
 - Arch Linux
 - Debian 10
 - Debian 11
+- Debian 12
 - Ubuntu 20.04
 - Ubuntu 22.04
 - CentOS 7
@@ -91,6 +92,7 @@ archlinux
 centos7
 debian10
 debian11
+debian12
 rocky8
 rocky9
 suseleap154
