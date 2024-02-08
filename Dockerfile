@@ -152,7 +152,7 @@ ARG locale
 
 RUN yum -y install epel-release
 # Install pyenv build deps
-RUN yum -y --skip-broken install gcc gcc-c++ make patch zlib-devel bzip2 bzip2-devel readline-devel sqlite sqlite-devel openssl-devel tk-devel libffi-devel xz-devel
+RUN yum -y --skip-broken install gcc gcc-c++ make patch zlib-devel bzip2 bzip2-devel readline-devel sqlite sqlite-devel openssl-devel tk-devel libffi-devel xz-devel libcurl-devel
 # Install other packages
 RUN yum -y --skip-broken install git wget curl vim iproute openssh-server man man-pages tree langpacks-${locale%%_*}
 
