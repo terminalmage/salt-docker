@@ -103,7 +103,7 @@ ARG locale
 
 RUN apt-get update
 # Install pyenv build deps
-RUN DEBIAN_FRONTEND=noninteractive apt-get -y install build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev curl libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+RUN DEBIAN_FRONTEND=noninteractive apt-get -y install build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev curl libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev libcurl4-openssl-dev
 # Install other packages
 RUN DEBIAN_FRONTEND=noninteractive apt-get -y install git wget curl vim iproute2 openssh-server man-db less locales tree
 
