@@ -56,6 +56,10 @@ BUILD OPTIONS (ignored if --no-build is used):
     --image             Docker image name (default: ${DEFAULT_DOCKER_IMAGE})
     --locale            Locale to use (default: ${DEFAULT_DOCKER_LOCALE})
     --python            Python to install into built image (default: ${DEFAULT_DOCKER_PYTHON})
+
+RUN OPTIONS (ignored if --no-run is used):
+    --mount SRC DEST    Bind-mounts SRC into the container at DEST
+
 " 1>&2
 }
 
@@ -105,8 +109,8 @@ function _run {
     local options=()
     # Work around RPM bug (https://stackoverflow.com/a/74346590)
     [[ "$PLATFORM" == centos7 ]] && options=("${options[@]}" "--ulimit" "nofile=4096:4096")
-    docker run --rm -it "${options[@]}" \
-        -v "$PWD":/testing \
+    docker run --rm -it "${DOCKER_RUN_OPTS[@]}" "${options[@]}" \
+        --mount type=bind,source="$PWD",target=/testing \
         "${DOCKER_IMAGE}:${PLATFORM}" "${DOCKER_RUN_ARGV[@]}"
 }
 ##############################################################################
@@ -133,6 +137,7 @@ DOCKER_BUILD_CACHE=yes
 DOCKER_IMAGE="$DEFAULT_DOCKER_IMAGE"
 DOCKER_LOCALE="$DEFAULT_DOCKER_LOCALE"
 DOCKER_PYTHON="$DEFAULT_DOCKER_PYTHON"
+DOCKER_RUN_OPTS=()
 DOCKER_RUN_ARGV=()
 
 while [[ $# -gt 0 ]]; do
@@ -185,6 +190,10 @@ while [[ $# -gt 0 ]]; do
         --python)
             DOCKER_PYTHON="$2"
             shift 2
+            ;;
+        --mount)
+            DOCKER_RUN_OPTS=("${DOCKER_RUN_OPTS[@]}" --mount type=bind,source="$2",target="$3")
+            shift 3
             ;;
         "")
             # No more arguments

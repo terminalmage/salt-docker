@@ -87,6 +87,9 @@ BUILD OPTIONS (ignored if --no-build is used):
     --locale            Locale to use (default: en_US.UTF-8)
     --python            Python to install into built image (default: 3.10.11)
 
+RUN OPTIONS (ignored if --no-run is used):
+    --mount SRC DEST    Bind-mounts SRC into the container at DEST
+
 ❯ salt-docker --list-platforms
 archlinux
 centos7
