@@ -12,6 +12,7 @@ declare -A BASE_IMAGE
 BASE_IMAGE[archlinux]="archlinux:latest"
 BASE_IMAGE[debian10]="debian:10"
 BASE_IMAGE[debian11]="debian:11"
+BASE_IMAGE[debian12]="debian:bookworm"
 BASE_IMAGE[ubuntu20]="ubuntu:focal"
 BASE_IMAGE[ubuntu22]="ubuntu:jammy"
 BASE_IMAGE[centos7]="centos:7"

@@ -126,6 +126,13 @@ FROM platform_debian_common AS platform_debian10
 FROM platform_debian_common AS platform_debian11
 
 ##############################################################################
+# STAGE:        platform_debian12
+# DESCRIPTION:  Perform tasks unique to Debian 12 (Bookworm)
+##############################################################################
+
+FROM platform_debian_common AS platform_debian12
+
+##############################################################################
 # STAGE:        platform_ubuntu20
 # DESCRIPTION:  Perform tasks unique to Ubuntu 20.04 LTS (Focal Fossa)
 ##############################################################################
@@ -276,7 +283,12 @@ EOF
 RUN mkdir -p "$requirements_path"
 COPY --from=requirements static/ci/ "$requirements_path"/
 
-# Install Python packages into virtualenv
+# Install Python packages into virtualenv. Include a workaround to get PyYAML
+# 5.4.1 to build since it is broken with Cython 3.0.
+ARG constraint_file=/constraint.txt
+RUN "$venv_path/bin/pip" install "Cython < 3.0"
+RUN echo 'Cython < 3.0' >$constraint_file; PIP_CONSTRAINT=$constraint_file "$venv_path/bin/pip" install "pyyaml==5.4.1"
+RUN rm $constraint_file
 RUN "$venv_path/bin/pip" install -r "${requirements_path}/py${python_release%.*}/${requirements_type}.txt"
 
 # Install additional python packages for development
