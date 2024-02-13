@@ -126,6 +126,20 @@ removed automatically upon exit):
 salt-docker ubuntu22 py.test -vvv /testing/tests/pytests/unit/modules/test_aptpkg.py
 ```
 
+### Caveats
+
+- Since this project uses the static pip requirements generated for use in
+  Salt's test suite, if you use salt-docker to build an image for given
+  platform, but come back later and run for example `salt-docker ubuntu22`, if
+  the static requirements have changed, this will cause the image to be rebuilt
+  with the updated requirements. If you would like to skip the `docker build`
+  that salt-docker runs under-the-hood, simply run it with `--no-build`, for
+  example:
+
+  ```bash
+  salt-docker --no-build ubuntu22
+  ```
+
 ### Outstanding Needs/Questions
 
 - Where should the Dockerfile and tool live? Ideally this would be merged into
