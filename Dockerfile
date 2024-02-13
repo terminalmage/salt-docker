@@ -284,11 +284,15 @@ RUN mkdir -p "$requirements_path"
 COPY --from=requirements static/ci/ "$requirements_path"/
 
 # Install Python packages into virtualenv. Include a workaround to get PyYAML
-# 5.4.1 to build since it is broken with Cython 3.0.
+# 5.4.1 to build since it is broken with Cython 3.0. Note that the salt project
+# has since upgraded to PyYAML 6 in their requirements files, but this
+# workaround will cover cases where you're testing a commit that is still on
+# 5.4.1. For cases where PyYAML 6 is being used, the 5.4.1 version installed by
+# the workaround will be replaced with the newer version of PyYAML. when the
+# requirements file is installed.
 ARG constraint_file=/constraint.txt
 RUN "$venv_path/bin/pip" install "Cython < 3.0"
-RUN echo 'Cython < 3.0' >$constraint_file; PIP_CONSTRAINT=$constraint_file "$venv_path/bin/pip" install "pyyaml==5.4.1"
-RUN rm $constraint_file
+RUN echo 'Cython < 3.0' >$constraint_file; PIP_CONSTRAINT=$constraint_file "$venv_path/bin/pip" install "pyyaml==5.4.1" && rm $constraint_file
 RUN "$venv_path/bin/pip" install -r "${requirements_path}/py${python_release%.*}/${requirements_type}.txt"
 
 # Install additional python packages for development
