@@ -129,6 +129,15 @@ removed automatically upon exit):
 salt-docker ubuntu22 py.test -vvv /testing/tests/pytests/unit/modules/test_aptpkg.py
 ```
 
+For Debian/Ubuntu platforms, if you have built an image in the past, and later
+pull salt-docker changes and attempt to use salt-docker again, salt-docker may
+detect changes to the Dockerfile and attempt to `apt-get install` packages. If
+this results in a 404 error trying to download packages, this is because a
+prior build would have run `apt-get update`, and your Docker installation still
+has that layer, so the `apt-get update` is operating off of outdated repo
+metadata. To force salt-docker to update its repo metadata and finish building
+the image, you will need to run salt-docker with the `--no-cache` option.
+
 ### Caveats
 
 - Since this project uses the static pip requirements generated for use in
